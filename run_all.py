@@ -1,57 +1,75 @@
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
-VENV_PYTHON = BACKEND_DIR / ".venv" / "Scripts" / "python.exe"
+
+
+def run_backend():
+    # Uses the same Python interpreter that runs this script
+    cmd = [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--reload", "--port", "8000"]
+    return subprocess.Popen(cmd, cwd=ROOT)
+
+
+def run_frontend():
+    # Assumes Node.js and npm are installed and available in PATH
+    cmd = ["npm", "run", "dev", "--", "--port", "5173"]
+    return subprocess.Popen(cmd, cwd=FRONTEND_DIR, shell=os.name == "nt")
 
 
 def main() -> None:
-    """
-    Run FastAPI backend and React frontend together.
+    print("Starting AI IT Support Agent stack...")
+    print(f"Project root: {ROOT}")
 
-    - Assumes:
-      - backend/.venv exists with dependencies installed
-      - frontend node_modules installed (npm install)
-    """
-    backend_cmd = [
-        str(VENV_PYTHON if VENV_PYTHON.exists() else sys.executable),
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--reload",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-    ]
-
-    # On Windows, npm is usually npm.cmd
-    npm_exe = "npm.cmd" if os.name == "nt" else "npm"
-    frontend_cmd = [npm_exe, "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
-
-    print("Starting backend:", " ".join(backend_cmd))
-    backend_proc = subprocess.Popen(backend_cmd, cwd=str(BACKEND_DIR))
-
-    print("Starting frontend:", " ".join(frontend_cmd))
-    try:
-        frontend_proc = subprocess.Popen(frontend_cmd, cwd=str(FRONTEND_DIR))
-    except FileNotFoundError:
-        print("Could not find npm. Please ensure Node.js/npm is installed and on PATH.")
-        frontend_proc = None
+    backend_proc = None
+    frontend_proc = None
 
     try:
-        backend_proc.wait()
+        if not BACKEND_DIR.exists():
+            print("ERROR: backend directory not found.")
+            return
+        if not FRONTEND_DIR.exists():
+            print("ERROR: frontend directory not found.")
+            return
+
+        print("Starting backend (FastAPI + Uvicorn) on http://localhost:8000 ...")
+        backend_proc = run_backend()
+
+        # Give backend a moment to start
+        time.sleep(2)
+
+        print("Starting frontend (React + Vite) on http://localhost:5173 ...")
+        frontend_proc = run_frontend()
+
+        print("\nBoth backend and frontend are starting.")
+        print("You can open the app in your browser after Vite prints the local URL.")
+        print("Press Ctrl+C to stop everything.\n")
+
+        # Wait until user interrupts
+        while True:
+            time.sleep(1)
+            # If either process exits unexpectedly, stop the other
+            if backend_proc.poll() is not None:
+                print("Backend process exited. Stopping frontend...")
+                break
+            if frontend_proc.poll() is not None:
+                print("Frontend process exited. Stopping backend...")
+                break
+
     except KeyboardInterrupt:
-        print("\nShutting down processes...")
+        print("\nReceived Ctrl+C. Shutting down...")
     finally:
         for proc in (backend_proc, frontend_proc):
             if proc and proc.poll() is None:
-                proc.terminate()
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
 
 
 if __name__ == "__main__":

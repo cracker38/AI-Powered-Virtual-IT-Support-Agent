@@ -1,114 +1,86 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
 from ..database import get_db
+from ..models import KnowledgeBaseArticle, User, UserRole
+from ..schemas import KnowledgeBaseArticleCreate, KnowledgeBaseArticleRead
+from ..security.auth import get_current_active_user, require_role
 
 
 router = APIRouter(prefix="/kb", tags=["knowledge-base"])
 
 
-def get_current_admin(db: Session = Depends(get_db)) -> models.User:
-    # Placeholder; in production, validate role from JWT
-    user = db.query(models.User).filter(models.User.username == "admin").first()
-    if not user:
-        user = models.User(username="admin", email="admin@example.com")
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
-
-
-@router.get("/articles", response_model=list[schemas.KBArticleRead])
-def list_articles(
-    query: str | None = None,
-    language: str | None = None,
-    tag: str | None = None,
+@router.get("/public", response_model=List[KnowledgeBaseArticleRead])
+def list_public_articles(
     db: Session = Depends(get_db),
-) -> list[schemas.KBArticleRead]:
-    q = db.query(models.KBArticle)
-    if language:
-        q = q.filter(models.KBArticle.language == language)
-    if tag:
-        q = q.filter(models.KBArticle.tags.isnot(None)).filter(models.KBArticle.tags.like(f"%{tag}%"))
-    if query:
-        like = f"%{query}%"
-        q = q.filter(
-            or_(
-                models.KBArticle.title.like(like),
-                models.KBArticle.body_markdown.like(like),
-                models.KBArticle.tags.like(like),
-            )
+    q: str | None = Query(default=None),
+    limit: int = Query(default=10, le=20),
+):
+    """Guest access: view-only, limited published articles. No auth required."""
+    query = db.query(KnowledgeBaseArticle).filter(KnowledgeBaseArticle.is_published.is_(True))
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (KnowledgeBaseArticle.title.ilike(like)) | (KnowledgeBaseArticle.content.ilike(like))
         )
-    articles = q.order_by(models.KBArticle.updated_at.desc()).all()
-    return [schemas.KBArticleRead.model_validate(article) for article in articles]
+    return query.order_by(KnowledgeBaseArticle.created_at.desc()).limit(limit).all()
 
 
-@router.post("/articles", response_model=schemas.KBArticleRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=KnowledgeBaseArticleRead, status_code=status.HTTP_201_CREATED)
 def create_article(
-    payload: schemas.KBArticleCreate,
+    article_in: KnowledgeBaseArticleCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin),
-) -> schemas.KBArticleRead:
-    article = models.KBArticle(
-        title=payload.title,
-        slug=payload.slug,
-        language=payload.language,
-        body_markdown=payload.body_markdown,
-        tags=payload.tags,
-        is_published=payload.is_published,
-        created_by_user_id=current_user.id,
-        updated_by_user_id=current_user.id,
+    current_admin: User = Depends(require_role(UserRole.IT_ADMIN)),
+):
+    article = KnowledgeBaseArticle(
+        title=article_in.title,
+        content=article_in.content,
+        category=article_in.category,
+        tags=article_in.tags,
+        is_published=article_in.is_published,
+        created_by=current_admin.id,
     )
     db.add(article)
     db.commit()
     db.refresh(article)
-    return schemas.KBArticleRead.model_validate(article)
+    return article
 
 
-@router.get("/articles/{article_id}", response_model=schemas.KBArticleRead)
+@router.get("/", response_model=List[KnowledgeBaseArticleRead])
+def list_articles(
+    db: Session = Depends(get_db),
+    q: str | None = Query(default=None, description="Search query for title/content"),
+    include_unpublished: bool = False,
+    current_user: User = Depends(get_current_active_user),
+):
+    if include_unpublished and current_user.role not in (UserRole.IT_ADMIN, UserRole.SUPER_ADMIN):
+        include_unpublished = False
+    query = db.query(KnowledgeBaseArticle)
+    if not include_unpublished:
+        query = query.filter(KnowledgeBaseArticle.is_published.is_(True))
+
+    if q:
+        like_pattern = f"%{q}%"
+        query = query.filter(
+            (KnowledgeBaseArticle.title.ilike(like_pattern))
+            | (KnowledgeBaseArticle.content.ilike(like_pattern))
+        )
+
+    return query.order_by(KnowledgeBaseArticle.created_at.desc()).all()
+
+
+@router.get("/{article_id}", response_model=KnowledgeBaseArticleRead)
 def get_article(
     article_id: int,
     db: Session = Depends(get_db),
-) -> schemas.KBArticleRead:
-    article = db.query(models.KBArticle).get(article_id)
+    current_user: User = Depends(get_current_active_user),
+):
+    article = db.query(KnowledgeBaseArticle).filter(KnowledgeBaseArticle.id == article_id).first()
     if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-    return schemas.KBArticleRead.model_validate(article)
-
-
-@router.put("/articles/{article_id}", response_model=schemas.KBArticleRead)
-def update_article(
-    article_id: int,
-    payload: schemas.KBArticleUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin),
-) -> schemas.KBArticleRead:
-    article = db.query(models.KBArticle).get(article_id)
-    if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(article, field, value)
-    article.updated_by_user_id = current_user.id
-
-    db.add(article)
-    db.commit()
-    db.refresh(article)
-    return schemas.KBArticleRead.model_validate(article)
-
-
-@router.delete("/articles/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_article(
-    article_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin),  # noqa: ARG001
-) -> None:
-    article = db.query(models.KBArticle).get(article_id)
-    if not article:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-    db.delete(article)
-    db.commit()
+        raise HTTPException(status_code=404, detail="Article not found")
+    if not article.is_published and current_user.role not in (UserRole.IT_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Not allowed to view this article")
+    return article
 

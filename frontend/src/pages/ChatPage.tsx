@@ -1,100 +1,115 @@
-import { FormEvent, useState } from "react";
-import { chatApi, ChatQueryResponse } from "../api";
+import React, { useEffect, useRef, useState } from "react";
 
-interface Message {
-  sender: "user" | "bot";
+import { api } from "../api";
+
+interface ChatMessage {
+  from: "user" | "agent";
   text: string;
 }
 
-type LanguageCode = "en" | "rw" | "fr";
+const SUGGESTED_CHIPS = [
+  "Password reset",
+  "Email not working",
+  "VPN connection issue",
+  "Outlook problems",
+  "Computer slow",
+];
 
-function ChatPage() {
-  const [conversationId, setConversationId] = useState<number | undefined>();
-  const [messages, setMessages] = useState<Message[]>([]);
+const ChatPage: React.FC = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      from: "agent",
+      text: "Hello! I'm your virtual IT support agent. How can I help you today? Try a suggested question below or describe your issue.",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [language, setLanguage] = useState<LanguageCode>("en");
-  const [botTyping, setBotTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
 
-    const userMessage: Message = { sender: "user", text: input };
+  const sendMessage = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg) return;
+    setInput("");
+    const userMessage: ChatMessage = { from: "user", text: msg };
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
-    setBotTyping(true);
-
     try {
-      const response: ChatQueryResponse = await chatApi.query({
-        conversation_id: conversationId,
-        message: input,
-        language_hint: language,
+      const response = await api.post("/chat/message", {
+        message: userMessage.text,
+        language: "en",
       });
-      setConversationId(response.conversation_id);
-
-      // Simulate typing delay for better UX
-      setTimeout(() => {
-        const botMessage: Message = { sender: "bot", text: response.reply };
-        setMessages((prev) => [...prev, botMessage]);
-        setBotTyping(false);
-      }, 350);
-    } catch (error) {
-      const botMessage: Message = {
-        sender: "bot",
-        text: "Sorry, something went wrong contacting the support service.",
+      const reply: ChatMessage = { from: "agent", text: response.data.ai_reply };
+      setMessages((prev) => [...prev, reply]);
+    } catch (err) {
+      const reply: ChatMessage = {
+        from: "agent",
+        text: "Sorry, something went wrong. Please try again or submit a ticket for assistance.",
       };
-      setMessages((prev) => [...prev, botMessage]);
-      setBotTyping(false);
+      setMessages((prev) => [...prev, reply]);
     } finally {
-      setInput("");
       setLoading(false);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendMessage();
+  };
+
   return (
-    <div className="chat-page">
-      <div className="chat-window">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`chat-message ${msg.sender}`}>
-            <div className="bubble">{msg.text}</div>
+    <div className="card chat-card">
+      <h2>IT Support Chat</h2>
+      <p className="muted">Describe your issue or choose a suggested question</p>
+      {messages.length <= 1 && (
+        <div className="chat-suggestions">
+          {SUGGESTED_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className="chat-chip"
+              onClick={() => void sendMessage(chip)}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="chat-window" ref={scrollRef}>
+        {messages.map((m, index) => (
+          <div
+            key={index}
+            className={`chat-message ${m.from === "user" ? "chat-message-user" : "chat-message-agent"}`}
+          >
+            {m.text}
           </div>
         ))}
-        {botTyping && (
-          <div className="chat-message bot">
-            <div className="bubble typing-indicator">
-              <span />
-              <span />
-              <span />
+        {loading && (
+          <div className="chat-message chat-message-agent">
+            <div className="typing-indicator">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
             </div>
           </div>
         )}
       </div>
-      <form className="chat-input-row" onSubmit={handleSubmit}>
-        <select
-          className="lang-select"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as LanguageCode)}
-          disabled={loading}
-        >
-          <option value="en">EN</option>
-          <option value="rw">RW</option>
-          <option value="fr">FR</option>
-        </select>
+      <form onSubmit={handleSubmit} className="chat-input-row">
         <input
           type="text"
           placeholder="Describe your IT issue..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          disabled={loading}
         />
-        <button type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Send"}
+        <button type="submit" className="btn-primary" disabled={loading}>
+          Send
         </button>
       </form>
     </div>
   );
-}
+};
 
 export default ChatPage;
-

@@ -1,0 +1,133 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 3rem 8%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rem;
+}
+
+.navLeftWrapper {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+}
+
+.headerLogo {
+  object-fit: contain;
+}
+
+.navLeft {
+  display: flex;
+  gap: 3rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+}
+
+.navLink {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.navLink:hover {
+  opacity: 0.8;
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.langToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  font-size: 1.15rem;
+}
+
+.loginBtn {
+  background: var(--button-bg);
+  border: none;
+  color: white;
+  padding: 0.8rem 2.5rem;
+  border-radius: 6px;
+  font-size: 1.15rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease;
+  backdrop-filter: blur(5px);
+  letter-spacing: 0.05em;
+}
+
+.loginBtn:hover {
+  background: var(--button-bg-hover);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.logoImage {
+  object-fit: contain;
+}
+
+.logoText {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.description {
+  font-size: 1.3rem;
+  line-height: 2;
+  margin-bottom: 4.5rem;
+  opacity: 0.95;
+  max-width: 760px;
+}
+
+.ctaBtn {
+  background: var(--button-bg);
+  border: none;
+  color: white;
+  padding: 1.3rem 3rem;
+  border-radius: 6px;
+  font-size: 1.3rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  letter-spacing: 0.02em;
+}
+
+.ctaBtn:hover {
+  background: var(--button-bg-hover);
+  transform: translateY(-2px);
+}

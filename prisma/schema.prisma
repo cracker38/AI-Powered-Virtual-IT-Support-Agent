@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                      String   @id @default(cuid())
+  email                   String   @unique
+  password                String
+  name                    String
+  role                    String   @default("USER")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  tickets                 Ticket[]
+  notificationPreferences NotificationPreference?
+  notifications           Notification[]
+  technicianProfile       Technician?
+  accessLogs              AccessLog[]
+  securityQuestion        String?
+  securityAnswer          String?
+  failedLoginAttempts     Int      @default(0)
+  lockoutUntil            DateTime?
+  mfaEnabled              Boolean  @default(false)
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+}
+
+model Technician {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expertise    String   // Comma-separated: "Network,Hardware,Software"
+  currentWorkload Int    @default(0)
+  status       String   @default("AVAILABLE") // AVAILABLE, BUSY, ON_LEAVE
+  assignedTickets Ticket[]
+  ticketResponses TicketMessage[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TicketCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  description String
+  relatedExpertise String // Comma-separated expertise needed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model Ticket {
+  id                    String   @id @default(cuid())
+  ticketNumber          String   @unique // TKT-001, TKT-002, etc.
+  title                 String
+  description           String
+  summary               String? // Auto-generated from chat history
+  status                String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority              String   @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id])
+  categoryId            String?
+  category              TicketCategory? @relation(fields: [categoryId], references: [id])
+  assignedTechnicianId  String?
+  assignedTechnician    Technician? @relation(fields: [assignedTechnicianId], references: [id])
+  estimatedResolutionTime DateTime?
+  slaBreachTime         DateTime?
+  escalationLevel       Int      @default(1) // 1, 2, 3
+  resolutionNotes       String?
+  isAutoEscalated       Boolean  @default(false)
+  chatHistory           String?  // JSON serialized chat context
+  ticketMessages        TicketMessage[]
+  notifications         Notification[]
+  sentiment             String? // POSITIVE, NEUTRAL, NEGATIVE
+  detectedIntent        String? // PASSWORD_RESET, VPN_ISSUE, etc.
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model TicketMessage {
+  id            String   @id @default(cuid())
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  technicianId  String?
+  technician    Technician? @relation(fields: [technicianId], references: [id])
+  userId        String?
+  sender        String   // "USER" or "TECHNICIAN"
+  content       String
+  attachments   String?  // JSON array of attachment URLs
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model KnowledgeArticle {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String   @default("General")
+  tags      String   @default("")
+  status    String   @default("PUBLISHED") // DRAFT, REVIEW, PUBLISHED
+  authorId  String?
+  version   Int      @default(1)
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  userId         String
+  role           String
+  content        String
+  sentiment      String?
+  detectedIntent String?
+  confidence     Float?
+  createdAt      DateTime @default(now())
+}
+
+model AccessLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  action    String   @default("LOGIN") // LOGIN, LOGOUT
+  createdAt DateTime @default(now())
+}
+
+model NotificationPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailUpdates Boolean  @default(true)
+  smsUpdates   Boolean  @default(false)
+  inAppUpdates Boolean  @default(true)
+  voiceEnabled Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  type      String   // "ESCALATED", "ASSIGNED", "RESOLVED", "COMMENTED", "OVERDUE"
+  message   String
+  isRead    Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ArticleFeedback {
+  id         String   @id @default(cuid())
+  articleId  String
+  isHelpful  Boolean
+  userId     String?
+  createdAt  DateTime @default(now())
+}
+
+model BroadcastAlert {
+  id        String   @id @default(cuid())
+  message   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model TroubleshootingFlow {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  steps       DiagnosticStep[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DiagnosticStep {
+  id          String   @id @default(cuid())
+  flowId      String
+  flow        TroubleshootingFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  question    String
+  options     String   // JSON string array of options
+  nextSteps   String   // JSON map of option -> next step ID
+  solution    String?  // Solution text if it's an end node
+  createdAt   DateTime @default(now())
+}
+
+model IntentFeedback {
+  id          String   @id @default(cuid())
+  messageId   String
+  expectedIntent String
+  detectedIntent String
+  isCorrect   Boolean
+  userId      String?
+  createdAt   DateTime @default(now())
+}
+
+model AIModelVersion {
+  id          String   @id @default(cuid())
+  versionName String
+  description String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model IntegrationConfig {
+  id          String   @id @default(cuid())
+  serviceName String   @unique // e.g., "JIRA", "SERVICENOW"
+  apiUrl      String?
+  apiKey      String?
+  webhookUrl  String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WebhookLog {
+  id          String   @id @default(cuid())
+  serviceName String
+  payload     String
+  status      String   // SUCCESS, FAILED
+  errorMessage String?
+  createdAt   DateTime @default(now())
+}
+
+model SystemHealth {
+  id          String   @id @default(cuid())
+  component   String
+  status      String   // OPERATIONAL, DEGRADED, OUTAGE
+  lastChecked DateTime @default(now())
+  message     String?
+}
+
+model MaintenanceWindow {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  startTime   DateTime
+  endTime     DateTime
+  createdAt   DateTime @default(now())
+}

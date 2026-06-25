@@ -1,0 +1,34 @@
+.adminContainer {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-gradient);
+}
+.sidebar {
+  width: 250px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.navItem {
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.05rem;
+}
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+.mainContent {
+  flex: 1;
+  padding: 2.5rem;
+  overflow-y: auto;
+}

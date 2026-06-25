@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -41,3 +42,37 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+=======
+# Dependencies
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Database
+*.db
+data.db
+
+# Build / dist
+dist/
+build/
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Env files (secrets)
+.env
+.env.local
+
+# Logs
+*.log
+>>>>>>> fa9482b7b13a6cfd0273be4c4406ec75a2be3186

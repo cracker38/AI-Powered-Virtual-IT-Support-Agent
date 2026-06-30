@@ -27,6 +27,9 @@ export default function Home() {
           <div className={styles.langToggle}>
             En <ChevronDown size={18} />
           </div>
+          <Link href="/register">
+            <button className={styles.createAccountBtn}>Create Account</button>
+          </Link>
           <Link href="/login">
             <button className={styles.loginBtn}>Log in</button>
           </Link>
@@ -56,11 +59,18 @@ export default function Home() {
           anytime, anywhere.
         </p>
 
-        <Link href="/chat">
-          <button className={styles.ctaBtn}>
-            Start Chat with the Virtual IT Support Agent
-          </button>
-        </Link>
+        <div className={styles.ctaRow}>
+          <Link href="/register">
+            <button className={styles.secondaryCtaBtn}>
+              Create Account
+            </button>
+          </Link>
+          <Link href="/chat">
+            <button className={styles.ctaBtn}>
+              Start Chat with the Virtual IT Support Agent
+            </button>
+          </Link>
+        </div>
       </main>
     </div>
   );

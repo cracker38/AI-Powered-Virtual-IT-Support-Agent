@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+const ADMIN_MANAGED_ROLES = new Set(["TECHNICIAN", "ADMIN"]);
+
 export async function GET() {
   try {
     const users = await (prisma as any).user.findMany({
@@ -22,6 +24,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
+    if (!ADMIN_MANAGED_ROLES.has(role)) {
+      return NextResponse.json(
+        { error: "Admin dashboard can only create technician or admin accounts." },
+        { status: 400 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await (prisma as any).user.create({
@@ -29,7 +38,7 @@ export async function POST(req: Request) {
         name,
         email,
         password: hashedPassword,
-        role: role || "USER",
+        role,
       }
     });
 

@@ -118,6 +118,8 @@ export default function Login() {
         <div className={styles.footer}>
           Locked out or forgot password? <br/>
           <Link href="/reset-password" className={styles.link}>Request IT Account Recovery</Link>
+          <br />
+          Need a standard account? <Link href="/register" className={styles.link}>Create one here</Link>
         </div>
       </div>
     </div>

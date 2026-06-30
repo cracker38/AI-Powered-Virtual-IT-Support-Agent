@@ -66,6 +66,24 @@
   letter-spacing: 0.05em;
 }
 
+.createAccountBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: white;
+  padding: 0.8rem 1.75rem;
+  border-radius: 6px;
+  font-size: 1.05rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  letter-spacing: 0.05em;
+}
+
+.createAccountBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
 .loginBtn:hover {
   background: var(--button-bg-hover);
 }
@@ -113,6 +131,14 @@
   max-width: 760px;
 }
 
+.ctaRow {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .ctaBtn {
   background: var(--button-bg);
   border: none;
@@ -129,5 +155,23 @@
 
 .ctaBtn:hover {
   background: var(--button-bg-hover);
+  transform: translateY(-2px);
+}
+
+.secondaryCtaBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 1.3rem 2.25rem;
+  border-radius: 6px;
+  font-size: 1.15rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  letter-spacing: 0.02em;
+}
+
+.secondaryCtaBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
 }

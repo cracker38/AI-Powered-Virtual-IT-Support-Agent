@@ -31,6 +31,9 @@ Your job is to assist users with password resets, software troubleshooting, conn
 - Be polite, professional, and concise.
 - Use a helpful, technical but accessible tone.
 - If an issue is extremely complex or requires physical intervention, advise that you will escalate it to a human IT technician.
+- Stay strictly within the scope of the AI Powered Virtual IT Support Agent and technical support topics.
+- If the user asks something unrelated to IT support, AVISA, company systems, troubleshooting, accounts, devices, software, connectivity, tickets, knowledge base, or cybersecurity, do not answer the unrelated question directly.
+- For unrelated questions, briefly explain that you are the AI Powered Virtual IT Support Agent and that you handle technical issues, then invite the user to ask a technical support question instead.
 - Always output a valid JSON object matching this schema. Do not output any prose outside of the JSON object.
 Schema:
 {
@@ -67,6 +70,62 @@ Schema:
 
   return basePrompt + "\n" + languageInstructions[detectedLanguage as keyof typeof languageInstructions] + "\n" + corporateNote;
 };
+
+function isSupportScopedQuestion(message: string): boolean {
+  const scopedPatterns = [
+    /\bavisa\b/i,
+    /\bai powered virtual it support agent\b/i,
+    /\bit support\b/i,
+    /\btechnical issue(s)?\b/i,
+    /\btroubleshoot(ing)?\b/i,
+    /\bpassword(s)?\b/i,
+    /\breset\b/i,
+    /\blog[ -]?in\b/i,
+    /\bsign[ -]?in\b/i,
+    /\baccount\b/i,
+    /\baccess\b/i,
+    /\bvpn\b/i,
+    /\bnetwork\b/i,
+    /\bconnect(ion|ivity)?\b/i,
+    /\binternet\b/i,
+    /\bwi-?fi\b/i,
+    /\bemail\b/i,
+    /\bsoftware\b/i,
+    /\bapplication\b/i,
+    /\bapp\b/i,
+    /\bsystem\b/i,
+    /\bcomputer\b/i,
+    /\blaptop\b/i,
+    /\bprinter\b/i,
+    /\bdevice\b/i,
+    /\bbug\b/i,
+    /\berror\b/i,
+    /\bcrash\b/i,
+    /\bfail(ed|ure)?\b/i,
+    /\bsecurity\b/i,
+    /\bvirus\b/i,
+    /\bmalware\b/i,
+    /\btechnician\b/i,
+    /\bticket\b/i,
+    /\bknowledge base\b/i,
+    /\bhelp desk\b/i,
+    /\bsupport\b/i,
+  ];
+
+  return scopedPatterns.some((pattern) => pattern.test(message));
+}
+
+function buildOutOfScopeReply(language: string): string {
+  if (language === "fr") {
+    return "Je suis AVISA, l'agent virtuel de support informatique. Je traite les problemes techniques, le depannage, les comptes, les logiciels, la connectivite et les questions IT. Veuillez me poser une question liee au support informatique.";
+  }
+
+  if (language === "rw") {
+    return "Ndi AVISA, umukozi w'ikoranabuhanga wunganira abakoresha. Nkora ku bibazo bya tekiniki, gukemura ibibazo, konti, porogaramu, imiyoboro n'ibindi bibazo bya IT. Mbaza ikibazo gifitanye isano na tekiniki.";
+  }
+
+  return "I am AVISA, the AI Powered Virtual IT Support Agent. I deal with technical issues, troubleshooting, accounts, software, connectivity, and other IT support questions. Please ask me a technical support question.";
+}
 
 const DEFAULT_GREETING = {
   id: "welcome",
@@ -165,6 +224,7 @@ export async function POST(req: Request) {
     const { message, history, userId: bodyUserId } = body;
     const userId = resolveUserId(req, bodyUserId);
     const detectedLanguage = detectLanguage(message);
+    const isScopedQuestion = isSupportScopedQuestion(message);
 
     const keywords = message
       .split(/\s+/)
@@ -209,7 +269,29 @@ export async function POST(req: Request) {
     const frustrationMatch = /\b(annoyed|angry|crap|broken|worst|sucks|fail|error|crashes|locked|urgent|help|frustrated|stuck)\b/i.test(message);
     const isDemoMode = !process.env.GROQ_API_KEY;
 
-    if (isDemoMode) {
+    if (!isScopedQuestion) {
+      parsedResponse.reply = buildOutOfScopeReply(detectedLanguage);
+      parsedResponse.sentiment = "NEUTRAL";
+      parsedResponse.intent = "GENERAL";
+      parsedResponse.confidence = 0.98;
+      parsedResponse.suggestedQuestions = detectedLanguage === "fr"
+        ? [
+            "Comment reinitialiser mon mot de passe ?",
+            "Pourquoi mon application ne fonctionne pas ?",
+            "Comment ouvrir un ticket de support ?",
+          ]
+        : detectedLanguage === "rw"
+          ? [
+              "Nabasha nte gusubizaho ijambo banga?",
+              "Ni gute nakemura ikibazo cya porogaramu?",
+              "Nafungura nte tike ya support?",
+            ]
+          : [
+              "How do I reset my password?",
+              "Why is my application not working?",
+              "How do I open a support ticket?",
+            ];
+    } else if (isDemoMode) {
       await new Promise((res) => setTimeout(res, 1200));
       const demoReplyText = detectedLanguage === "fr"
         ? `Je suis actuellement en 'Mode Démo'. J'ai analysé votre demande : '${message}'. ${contextText ? "Des guides internes pertinents ont été trouvés." : "Aucun guide interne spécifique n'a été trouvé pour cela."}`

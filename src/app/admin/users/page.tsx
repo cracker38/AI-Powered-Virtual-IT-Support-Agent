@@ -25,7 +25,7 @@ export default function UserManagement() {
     name: "",
     email: "",
     password: "",
-    role: "USER"
+    role: "TECHNICIAN"
   });
 
   const fetchData = async () => {
@@ -62,7 +62,7 @@ export default function UserManagement() {
       if (response.ok) {
         setShowModal(false);
         setEditingUser(null);
-        setFormData({ name: "", email: "", password: "", role: "USER" });
+        setFormData({ name: "", email: "", password: "", role: "TECHNICIAN" });
         fetchData();
       } else {
         alert("Action failed. Check logs.");
@@ -199,7 +199,9 @@ export default function UserManagement() {
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 >
-                  <option value="USER">Standard User</option>
+                  {editingUser && formData.role === "USER" ? (
+                    <option value="USER">Standard User (public signup only)</option>
+                  ) : null}
                   <option value="TECHNICIAN">IT Technician</option>
                   <option value="ADMIN">System Admin</option>
                 </select>
